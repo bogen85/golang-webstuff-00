@@ -1,0 +1,15 @@
+{
+  "CommonName": "fbsdswdev00",
+  "Country": "US",
+  "Organization": "Teegra Home",
+  "OrganizationalUnit": "IT",
+  "Locality": "Dallas",
+  "Province": "Texas",
+  "StreetAddress": "7919 Greenhollow Ln",
+  "PostalCode": "75240",
+  "DNSNames": ["fbsdswdev00", "fbsdswdev00.office", "localhost"],
+  "IPAddresses": ["127.0.0.1", "192.168.25.90"],
+  "EmailAddresses": ["dwight.schauer@teegra.net", "das@teegra.net"],
+  "ValidityDays": 30,
+  "KeySize1": 2048
+}

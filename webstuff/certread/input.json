@@ -1,0 +1,4 @@
+{
+    "cert": "../certgen/cert.pem",
+    "key": "../certgen/key.pem"
+}
