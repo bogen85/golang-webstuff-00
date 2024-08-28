@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -11,6 +10,7 @@ import (
 	"time"
 
 	"github.com/rs/cors"
+	"github.com/titanous/json5"
 )
 
 type Config struct {
@@ -51,6 +51,7 @@ func (rl *RateLimiter) Write(data []byte) (int, error) {
 }
 
 func main() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	// Default input file
 	configFile := "input.json"
 
@@ -67,7 +68,7 @@ func main() {
 
 	// Parse the JSON file
 	var config Config
-	err = json.Unmarshal(data, &config)
+	err = json5.Unmarshal(data, &config)
 	if err != nil {
 		log.Fatalf("Failed to parse config file: %v", err)
 	}
