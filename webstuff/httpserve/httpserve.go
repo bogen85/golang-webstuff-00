@@ -14,17 +14,17 @@ import (
 )
 
 type Config struct {
-	Addresses       []string `json:"addresses"`
-	Port            int      `json:"port"`
-	Directory       string   `json:"directory"`
-	CertFile        string   `json:"cert_file"`
-	KeyFile         string   `json:"key_file"`
-	RateLimitKbps   int      `json:"rate_limit_kbps,omitempty"` // Optional rate limit in Kbps
-	CORSAllowedOrigins []string `json:"cors_allowed_origins,omitempty"`
-	CORSAllowedMethods []string `json:"cors_allowed_methods,omitempty"`
-	CORSAllowedHeaders []string `json:"cors_allowed_headers,omitempty"`
-	CORSAllowCredentials bool   `json:"cors_allow_credentials,omitempty"`
-	CORSMaxAge         int      `json:"cors_max_age,omitempty"`
+	Addresses            []string `json:"addresses"`
+	Port                 int      `json:"port"`
+	Directory            string   `json:"directory"`
+	CertFile             string   `json:"cert_file"`
+	KeyFile              string   `json:"key_file"`
+	RateLimitKbps        int      `json:"rate_limit_kbps,omitempty"` // Optional rate limit in Kbps
+	CORSAllowedOrigins   []string `json:"cors_allowed_origins,omitempty"`
+	CORSAllowedMethods   []string `json:"cors_allowed_methods,omitempty"`
+	CORSAllowedHeaders   []string `json:"cors_allowed_headers,omitempty"`
+	CORSAllowCredentials bool     `json:"cors_allow_credentials,omitempty"`
+	CORSMaxAge           int      `json:"cors_max_age,omitempty"`
 }
 
 // RateLimiter is a custom http.ResponseWriter that wraps an existing ResponseWriter and limits the rate at which data is written.
@@ -48,6 +48,17 @@ func (rl *RateLimiter) Write(data []byte) (int, error) {
 	}
 
 	return n, nil
+}
+
+// rateLimitHandler is a middleware that limits the rate at which data is sent to the client.
+func rateLimitHandler(next http.Handler, limitBytesPerSec int64) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		limiter := &RateLimiter{
+			ResponseWriter:   w,
+			limitBytesPerSec: limitBytesPerSec,
+		}
+		next.ServeHTTP(limiter, r)
+	})
 }
 
 func main() {
@@ -105,48 +116,39 @@ func main() {
 	usedAddresses := make(map[string]struct{})
 
 	// Serve HTTPS on each address
-	for _, addr := range config.Addresses {
+	for i, addr := range config.Addresses {
 		// Resolve the hostname to an IP address
+		log.Printf("%d) Resolving host %s", i+1, addr)
 		ipAddrs, err := net.LookupIP(addr)
 		if err != nil {
 			log.Fatalf("Failed to resolve address %s: %v", addr, err)
 		}
 
-		for _, ip := range ipAddrs {
+		for j, ip := range ipAddrs {
 			ipStr := ip.String()
 			fullAddr := net.JoinHostPort(ipStr, fmt.Sprintf("%d", config.Port))
+			log.Printf("%d:%d) Found address %s", i+1, j+1, ipStr)
 
 			// Check if the IP address has already been used
 			if _, exists := usedAddresses[fullAddr]; exists {
 				log.Printf("Skipping duplicate address %s\n", fullAddr)
 				continue
 			}
-
 			// Mark this IP address as used
 			usedAddresses[fullAddr] = struct{}{}
-
-			// Start the server
-			go func(addr string) {
-				log.Printf("Starting HTTPS server on %s\n", addr)
-				err := http.ListenAndServeTLS(addr, config.CertFile, config.KeyFile, mux)
-				if err != nil {
-					log.Fatalf("Failed to start server on %s: %v", addr, err)
-				}
-			}(fullAddr)
 		}
+	}
+	for fullAddr := range usedAddresses {
+		// Start the server
+		go func(addr string) {
+			log.Printf("Starting HTTPS server on %s\n", addr)
+			err := http.ListenAndServeTLS(addr, config.CertFile, config.KeyFile, mux)
+			if err != nil {
+				log.Fatalf("Failed to start server on %s: %v", addr, err)
+			}
+		}(fullAddr)
 	}
 
 	// Block main goroutine to prevent exit
 	select {}
-}
-
-// rateLimitHandler is a middleware that limits the rate at which data is sent to the client.
-func rateLimitHandler(next http.Handler, limitBytesPerSec int64) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		limiter := &RateLimiter{
-			ResponseWriter:  w,
-			limitBytesPerSec: limitBytesPerSec,
-		}
-		next.ServeHTTP(limiter, r)
-	})
 }
