@@ -9,15 +9,22 @@ import (
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/rs/cors"
 )
 
 type Config struct {
-	Addresses     []string `json:"addresses"`
-	Port          int      `json:"port"`
-	Directory     string   `json:"directory"`
-	CertFile      string   `json:"cert_file"`
-	KeyFile       string   `json:"key_file"`
-	RateLimitKbps int      `json:"rate_limit_kbps,omitempty"` // Optional rate limit in Kbps
+	Addresses       []string `json:"addresses"`
+	Port            int      `json:"port"`
+	Directory       string   `json:"directory"`
+	CertFile        string   `json:"cert_file"`
+	KeyFile         string   `json:"key_file"`
+	RateLimitKbps   int      `json:"rate_limit_kbps,omitempty"` // Optional rate limit in Kbps
+	CORSAllowedOrigins []string `json:"cors_allowed_origins,omitempty"`
+	CORSAllowedMethods []string `json:"cors_allowed_methods,omitempty"`
+	CORSAllowedHeaders []string `json:"cors_allowed_headers,omitempty"`
+	CORSAllowCredentials bool   `json:"cors_allow_credentials,omitempty"`
+	CORSMaxAge         int      `json:"cors_max_age,omitempty"`
 }
 
 // RateLimiter is a custom http.ResponseWriter that wraps an existing ResponseWriter and limits the rate at which data is written.
@@ -79,9 +86,19 @@ func main() {
 		fs = rateLimitHandler(fs, limitBytesPerSec)
 	}
 
+	// Apply CORS settings if provided in the configuration
+	corsOptions := cors.Options{
+		AllowedOrigins:   config.CORSAllowedOrigins,
+		AllowedMethods:   config.CORSAllowedMethods,
+		AllowedHeaders:   config.CORSAllowedHeaders,
+		AllowCredentials: config.CORSAllowCredentials,
+		MaxAge:           config.CORSMaxAge,
+	}
+	corsHandler := cors.New(corsOptions).Handler(fs)
+
 	// Create a multiplexer for routing
 	mux := http.NewServeMux()
-	mux.Handle("/", fs)
+	mux.Handle("/", corsHandler)
 
 	// Use a map to track which IP addresses have already been used
 	usedAddresses := make(map[string]struct{})
