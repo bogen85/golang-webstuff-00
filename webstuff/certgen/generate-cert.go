@@ -84,6 +84,75 @@ type CertConfig struct {
 	Overwrite          bool     `json:"Overwrite"`
 }
 
+// randomSerialNumber generates a unique serial number by combining the current Unix timestamp and random bytes.
+func randomSerialNumber() []byte {
+	timestamp := uint32(time.Now().Unix())
+	randomBytes := make([]byte, 12) // 12 random bytes
+	_, err := rand.Read(randomBytes)
+	if err != nil {
+		log.Fatalf("Failed to generate random bytes for serial number: %v", err)
+	}
+
+	serial := make([]byte, 4+len(randomBytes))
+	// Encode the Unix timestamp as a 4-byte big-endian integer
+	serial[0] = byte((timestamp >> 24) & 0xFF)
+	serial[1] = byte((timestamp >> 16) & 0xFF)
+	serial[2] = byte((timestamp >> 8) & 0xFF)
+	serial[3] = byte(timestamp & 0xFF)
+	// Append random bytes
+	copy(serial[4:], randomBytes)
+
+	return serial
+}
+
+// writeCertificateAndKey writes the certificate and key to the specified paths
+func writeCertificateAndKey(certDER []byte, privateKey interface{}, certPath, keyPath string) error {
+	// Write the certificate
+	certOut, err := os.Create(certPath)
+	if err != nil {
+		return err
+	}
+	if err := pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: certDER}); err != nil {
+		return err
+	}
+	if err := certOut.Close(); err != nil {
+		return err
+	}
+	log.Printf("Wrote %s\n", certPath)
+
+	// Write the private key
+	keyOut, err := os.Create(keyPath)
+	if err != nil {
+		return err
+	}
+
+	var privBytes []byte
+	switch k := privateKey.(type) {
+	case *rsa.PrivateKey:
+		privBytes = x509.MarshalPKCS1PrivateKey(k)
+		if err := pem.Encode(keyOut, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: privBytes}); err != nil {
+			return err
+		}
+	case *ecdsa.PrivateKey:
+		privBytes, err = x509.MarshalECPrivateKey(k)
+		if err != nil {
+			return err
+		}
+		if err := pem.Encode(keyOut, &pem.Block{Type: "EC PRIVATE KEY", Bytes: privBytes}); err != nil {
+			return err
+		}
+	default:
+		return err
+	}
+
+	if err := keyOut.Close(); err != nil {
+		return err
+	}
+	log.Printf("Wrote %s\n", keyPath)
+
+	return nil
+}
+
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
@@ -159,7 +228,7 @@ func main() {
 
 	// Set up the certificate template
 	template := x509.Certificate{
-		SerialNumber: big.NewInt(1),
+		SerialNumber: big.NewInt(0).SetBytes(randomSerialNumber()),
 		Subject: pkix.Name{
 			CommonName:         config.CommonName,
 			Country:            []string{config.Country},
@@ -210,49 +279,11 @@ func main() {
 			log.Fatalf("Failed to create CA certificate: %v", err)
 		}
 
-		// Write the CA certificate to the specified CAPath
-		certOut, err := os.Create(config.CAPath)
+		// Write the CA certificate and key to specified paths
+		err = writeCertificateAndKey(certDER, privateKey, config.CAPath, config.CAKeyPath)
 		if err != nil {
-			log.Fatalf("Failed to open %s for writing: %v", config.CAPath, err)
+			log.Fatalf("Failed to write CA certificate and key: %v", err)
 		}
-		if err := pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: certDER}); err != nil {
-			log.Fatalf("Failed to write data to %s: %v", config.CAPath, err)
-		}
-		if err := certOut.Close(); err != nil {
-			log.Fatalf("Error closing %s: %v", config.CAPath, err)
-		}
-		log.Printf("Wrote CA certificate to %s\n", config.CAPath)
-
-		// Write the private key to the specified CAKeyPath
-		keyOut, err := os.Create(config.CAKeyPath)
-		if err != nil {
-			log.Fatalf("Failed to open %s for writing: %v", config.CAKeyPath, err)
-		}
-
-		var privBytes []byte
-		switch k := privateKey.(type) {
-		case *rsa.PrivateKey:
-			privBytes = x509.MarshalPKCS1PrivateKey(k)
-			if err := pem.Encode(keyOut, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: privBytes}); err != nil {
-				log.Fatalf("Failed to write data to %s: %v", config.CAKeyPath, err)
-			}
-		case *ecdsa.PrivateKey:
-			privBytes, err = x509.MarshalECPrivateKey(k)
-			if err != nil {
-				log.Fatalf("Unable to marshal ECDSA private key: %v", err)
-			}
-			if err := pem.Encode(keyOut, &pem.Block{Type: "EC PRIVATE KEY", Bytes: privBytes}); err != nil {
-				log.Fatalf("Failed to write data to %s: %v", config.CAKeyPath, err)
-			}
-		default:
-			log.Fatalf("Unknown private key type")
-		}
-
-		if err := keyOut.Close(); err != nil {
-			log.Fatalf("Error closing %s: %v", config.CAKeyPath, err)
-		}
-		log.Printf("Wrote CA private key to %s\n", config.CAKeyPath)
-
 	} else {
 		// Load the CA certificate and private key
 		caCert, caKey, err := loadCA(config.CAPath, config.CAKeyPath)
@@ -266,48 +297,11 @@ func main() {
 			log.Fatalf("Failed to create signed certificate: %v", err)
 		}
 
-		// Write the certificate to the specified CertPath
-		certOut, err := os.Create(config.CertPath)
+		// Write the server certificate and key to specified paths
+		err = writeCertificateAndKey(certDER, privateKey, config.CertPath, config.CertKeyPath)
 		if err != nil {
-			log.Fatalf("Failed to open %s for writing: %v", config.CertPath, err)
+			log.Fatalf("Failed to write server certificate and key: %v", err)
 		}
-		if err := pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: certDER}); err != nil {
-			log.Fatalf("Failed to write data to %s: %v", config.CertPath, err)
-		}
-		if err := certOut.Close(); err != nil {
-			log.Fatalf("Error closing %s: %v", config.CertPath, err)
-		}
-		log.Printf("Wrote server certificate to %s\n", config.CertPath)
-
-		// Write the private key to the specified CertKeyPath
-		keyOut, err := os.Create(config.CertKeyPath)
-		if err != nil {
-			log.Fatalf("Failed to open %s for writing: %v", config.CertKeyPath, err)
-		}
-
-		var privBytes []byte
-		switch k := privateKey.(type) {
-		case *rsa.PrivateKey:
-			privBytes = x509.MarshalPKCS1PrivateKey(k)
-			if err := pem.Encode(keyOut, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: privBytes}); err != nil {
-				log.Fatalf("Failed to write data to %s: %v", config.CertKeyPath, err)
-			}
-		case *ecdsa.PrivateKey:
-			privBytes, err = x509.MarshalECPrivateKey(k)
-			if err != nil {
-				log.Fatalf("Unable to marshal ECDSA private key: %v", err)
-			}
-			if err := pem.Encode(keyOut, &pem.Block{Type: "EC PRIVATE KEY", Bytes: privBytes}); err != nil {
-				log.Fatalf("Failed to write data to %s: %v", config.CertKeyPath, err)
-			}
-		default:
-			log.Fatalf("Unknown private key type")
-		}
-
-		if err := keyOut.Close(); err != nil {
-			log.Fatalf("Error closing %s: %v", config.CertKeyPath, err)
-		}
-		log.Printf("Wrote server private key to %s\n", config.CertKeyPath)
 	}
 }
 

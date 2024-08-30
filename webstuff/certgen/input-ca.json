@@ -9,7 +9,7 @@
   "PostalCode": "75240",
   "EmailAddresses": ["dwight.schauer@teegra.net", "das@teegra.net"],
   "ValidityDays": 100,
-  "KeySize": 521,
+  "KeySize": 0,
   "CAPath": "~/etc/cert-authority/ca_cert.pem",
   "CAKeyPath": "~/etc/cert-authority/ca_key.pem",
   "Overwrite": false,
