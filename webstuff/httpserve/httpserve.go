@@ -2,12 +2,16 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net"
-	"net/http"
 	"os"
+	"strings"
 	"time"
+
+	"io/ioutil"
+	"net/http"
+	"net/http/httputil"
+	"net/url"
 
 	"github.com/rs/cors"
 	"github.com/titanous/json5"
@@ -16,7 +20,7 @@ import (
 type Config struct {
 	Addresses            []string `json:"addresses"`
 	Port                 int      `json:"port"`
-	Directory            string   `json:"directory"`
+	AppURI               string   `json:"app_uri"`
 	CertFile             string   `json:"cert_file"`
 	KeyFile              string   `json:"key_file"`
 	RateLimitKbps        int      `json:"rate_limit_kbps,omitempty"` // Optional rate limit in Kbps
@@ -25,6 +29,30 @@ type Config struct {
 	CORSAllowedHeaders   []string `json:"cors_allowed_headers,omitempty"`
 	CORSAllowCredentials bool     `json:"cors_allow_credentials,omitempty"`
 	CORSMaxAge           int      `json:"cors_max_age,omitempty"`
+}
+
+func AppHandler(appURI string) (app_handler http.Handler) {
+	if strings.HasPrefix(appURI, "http://") {
+		// Parse the target URL
+		appURL, err := url.Parse(appURI)
+		if err != nil {
+			log.Fatalf("Failed to parse appURI %s: %s", appURI, err)
+		}
+		// Create a reverse proxy handler
+		app_handler = httputil.NewSingleHostReverseProxy(appURL)
+		log.Printf("Serving application by proxy from URL: %s", appURL)
+	} else {
+		// Check if the directory to serve exists
+		if _, err := os.Stat(appURI); os.IsNotExist(err) {
+			log.Fatalf("AppURI path `%s` does not exist: %s", appURI, err)
+		}
+
+		// Create a file server handler for the directory
+		app_dir := http.Dir(appURI)
+		app_handler = http.FileServer(app_dir)
+		log.Printf("Serving application from directory: %s", app_dir)
+	}
+	return
 }
 
 // RateLimiter is a custom http.ResponseWriter that wraps an existing ResponseWriter and limits the rate at which data is written.
@@ -84,18 +112,12 @@ func main() {
 		log.Fatalf("Failed to parse config file: %v", err)
 	}
 
-	// Check if the directory to serve exists
-	if _, err := os.Stat(config.Directory); os.IsNotExist(err) {
-		log.Fatalf("Directory %s does not exist", config.Directory)
-	}
-
-	// Create a file server handler for the directory
-	fs := http.FileServer(http.Dir(config.Directory))
+	appHandler := AppHandler(config.AppURI)
 
 	// Apply rate limiting if specified in the configuration
 	if config.RateLimitKbps > 0 {
 		limitBytesPerSec := int64(config.RateLimitKbps * 125) // Convert Kbps to Bytes per second
-		fs = rateLimitHandler(fs, limitBytesPerSec)
+		appHandler = rateLimitHandler(appHandler, limitBytesPerSec)
 	}
 
 	// Apply CORS settings if provided in the configuration
@@ -106,7 +128,7 @@ func main() {
 		AllowCredentials: config.CORSAllowCredentials,
 		MaxAge:           config.CORSMaxAge,
 	}
-	corsHandler := cors.New(corsOptions).Handler(fs)
+	corsHandler := cors.New(corsOptions).Handler(appHandler)
 
 	// Create a multiplexer for routing
 	mux := http.NewServeMux()
@@ -152,3 +174,5 @@ func main() {
 	// Block main goroutine to prevent exit
 	select {}
 }
+
+// CudaText: lexer_file="Go"; tab_size=4; tab_spaces=No;
