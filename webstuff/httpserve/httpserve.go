@@ -5,6 +5,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"runtime"
 	"strings"
 	"time"
 
@@ -12,6 +13,8 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"os/user"
+	"path/filepath"
 
 	"github.com/rs/cors"
 	"github.com/titanous/json5"
@@ -29,6 +32,23 @@ type Config struct {
 	CORSAllowedHeaders   []string `json:"cors_allowed_headers,omitempty"`
 	CORSAllowCredentials bool     `json:"cors_allow_credentials,omitempty"`
 	CORSMaxAge           int      `json:"cors_max_age,omitempty"`
+}
+
+// ExpandPath expands the `~` in a path to the user's home directory.
+func ExpandPath(path string) string {
+	if strings.HasPrefix(path, "~") {
+		usr, err := user.Current()
+		if err != nil {
+			log.Fatalf("Unable to get current user to expand path: %s", path)
+		}
+
+		// Handle the case for Windows where the path could start with `~/`.
+		if runtime.GOOS == "windows" && len(path) > 1 && path[1] == '/' {
+			return filepath.Join(usr.HomeDir, path[2:])
+		}
+		return filepath.Join(usr.HomeDir, path[1:])
+	}
+	return path
 }
 
 func AppHandler(appURI string) (app_handler http.Handler) {
@@ -96,7 +116,7 @@ func main() {
 
 	// Check if a file was provided as an argument
 	if len(os.Args) > 1 {
-		configFile = os.Args[1]
+		configFile = ExpandPath(os.Args[1])
 	}
 
 	// Read the JSON configuration file
@@ -111,6 +131,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to parse config file: %v", err)
 	}
+
+	config.CertFile = ExpandPath(config.CertFile)
+	config.KeyFile = ExpandPath(config.KeyFile)
+	config.AppURI = ExpandPath(config.AppURI)
 
 	appHandler := AppHandler(config.AppURI)
 

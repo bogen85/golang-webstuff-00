@@ -1,7 +1,7 @@
 {
   "addresses": ["127.0.0.1", "localhost", "fbsdswdev00.office"],
   "port": 9443,
-  "directory": "./www",
-  "cert_file": "../certgen/cert.pem",
-  "key_file": "../certgen/key.pem"
+  "app_uri": "./",
+  "cert_file": "~/etc/certs/server_cert.pem",
+  "key_file": "~/etc/certs/server_key.pem"
 }
