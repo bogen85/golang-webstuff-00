@@ -153,6 +153,62 @@ func writeCertificateAndKey(certDER []byte, privateKey interface{}, certPath, ke
 	return nil
 }
 
+// loadCA loads the CA certificate and private key from the given paths
+func loadCA(caPath, caKeyPath string) (*x509.Certificate, interface{}, error) {
+	caCertPEM, err := ioutil.ReadFile(caPath)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	caKeyPEM, err := ioutil.ReadFile(caKeyPath)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	caCertBlock, _ := pem.Decode(caCertPEM)
+	if caCertBlock == nil || caCertBlock.Type != "CERTIFICATE" {
+		return nil, nil, err
+	}
+
+	caCert, err := x509.ParseCertificate(caCertBlock.Bytes)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	caKeyBlock, _ := pem.Decode(caKeyPEM)
+	if caKeyBlock == nil {
+		return nil, nil, err
+	}
+
+	var caKey interface{}
+	switch caKeyBlock.Type {
+	case "RSA PRIVATE KEY":
+		caKey, err = x509.ParsePKCS1PrivateKey(caKeyBlock.Bytes)
+	case "EC PRIVATE KEY":
+		caKey, err = x509.ParseECPrivateKey(caKeyBlock.Bytes)
+	default:
+		return nil, nil, err
+	}
+
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return caCert, caKey, nil
+}
+
+// publicKey returns the public key associated with a private key
+func publicKey(priv interface{}) interface{} {
+	switch k := priv.(type) {
+	case *rsa.PrivateKey:
+		return &k.PublicKey
+	case *ecdsa.PrivateKey:
+		return &k.PublicKey
+	default:
+		return nil
+	}
+}
+
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
@@ -302,61 +358,5 @@ func main() {
 		if err != nil {
 			log.Fatalf("Failed to write server certificate and key: %v", err)
 		}
-	}
-}
-
-// loadCA loads the CA certificate and private key from the given paths
-func loadCA(caPath, caKeyPath string) (*x509.Certificate, interface{}, error) {
-	caCertPEM, err := ioutil.ReadFile(caPath)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	caKeyPEM, err := ioutil.ReadFile(caKeyPath)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	caCertBlock, _ := pem.Decode(caCertPEM)
-	if caCertBlock == nil || caCertBlock.Type != "CERTIFICATE" {
-		return nil, nil, err
-	}
-
-	caCert, err := x509.ParseCertificate(caCertBlock.Bytes)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	caKeyBlock, _ := pem.Decode(caKeyPEM)
-	if caKeyBlock == nil {
-		return nil, nil, err
-	}
-
-	var caKey interface{}
-	switch caKeyBlock.Type {
-	case "RSA PRIVATE KEY":
-		caKey, err = x509.ParsePKCS1PrivateKey(caKeyBlock.Bytes)
-	case "EC PRIVATE KEY":
-		caKey, err = x509.ParseECPrivateKey(caKeyBlock.Bytes)
-	default:
-		return nil, nil, err
-	}
-
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return caCert, caKey, nil
-}
-
-// publicKey returns the public key associated with a private key
-func publicKey(priv interface{}) interface{} {
-	switch k := priv.(type) {
-	case *rsa.PrivateKey:
-		return &k.PublicKey
-	case *ecdsa.PrivateKey:
-		return &k.PublicKey
-	default:
-		return nil
 	}
 }
