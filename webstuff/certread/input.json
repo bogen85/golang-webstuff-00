@@ -1,4 +1,4 @@
 {
-    "cert": "../certgen/cert.pem",
-    "key": "../certgen/key.pem"
+    "cert": "/home/dwight/etc/cert-authority/zzz_teegra00_ca_cert.pem",
+    "key": "/home/dwight/etc/cert-authority/zzz_teegra00_ca_key.pem"
 }
