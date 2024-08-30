@@ -47,7 +47,6 @@ func main() {
 				fpos := fset.Position(pos)
 				fmt.Printf("Function %s defined at position %d:%d\n", x.Name.Name, fpos.Line, fpos.Column)
 			}
-			return true
 		}
 		return true
 	})
@@ -71,7 +70,6 @@ func main() {
 
 				}
 			}
-			return true
 		}
 		return true
 	})

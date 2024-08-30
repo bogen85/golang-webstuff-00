@@ -17,6 +17,29 @@ type Input struct {
 	KeyPath  string `json:"key"`
 }
 
+// Function to read cert and key paths from a JSON file
+func readPathsFromJSON(jsonPath string) (string, string) {
+	file, err := ioutil.ReadFile(jsonPath)
+	if err != nil {
+		fmt.Printf("Failed to read JSON file: %v\n", err)
+		os.Exit(1)
+	}
+
+	var input Input
+	if err := json.Unmarshal(file, &input); err != nil {
+		fmt.Printf("Failed to parse JSON file: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Ensure paths are valid and return them
+	if input.CertPath == "" || input.KeyPath == "" {
+		fmt.Println("Invalid JSON: must contain 'cert' and 'key' fields")
+		os.Exit(1)
+	}
+
+	return input.CertPath, input.KeyPath
+}
+
 func main() {
 	var certPath, keyPath string
 
@@ -93,27 +116,4 @@ func main() {
 	} else {
 		fmt.Println("  Key Size: (Unsupported key type)")
 	}
-}
-
-// Function to read cert and key paths from a JSON file
-func readPathsFromJSON(jsonPath string) (string, string) {
-	file, err := ioutil.ReadFile(jsonPath)
-	if err != nil {
-		fmt.Printf("Failed to read JSON file: %v\n", err)
-		os.Exit(1)
-	}
-
-	var input Input
-	if err := json.Unmarshal(file, &input); err != nil {
-		fmt.Printf("Failed to parse JSON file: %v\n", err)
-		os.Exit(1)
-	}
-
-	// Ensure paths are valid and return them
-	if input.CertPath == "" || input.KeyPath == "" {
-		fmt.Println("Invalid JSON: must contain 'cert' and 'key' fields")
-		os.Exit(1)
-	}
-
-	return input.CertPath, input.KeyPath
 }
