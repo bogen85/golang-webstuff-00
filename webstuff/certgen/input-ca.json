@@ -1,0 +1,17 @@
+{
+  "CommonName": "fbsdswdev00",
+  "Country": "US",
+  "Organization": "Teegra Home",
+  "OrganizationalUnit": "IT",
+  "Locality": "Dallas",
+  "Province": "Texas",
+  "StreetAddress": "7919 Greenhollow Ln",
+  "PostalCode": "75240",
+  "EmailAddresses": ["dwight.schauer@teegra.net", "das@teegra.net"],
+  "ValidityDays": 100,
+  "KeySize": 521,
+  "CAPath": "~/etc/cert-authority/ca_cert.pem",
+  "CAKeyPath": "~/etc/cert-authority/ca_key.pem",
+  "Overwrite": false,
+  "IsCA": true
+}

@@ -11,5 +11,11 @@
   "IPAddresses": ["127.0.0.1", "192.168.25.90"],
   "EmailAddresses": ["dwight.schauer@teegra.net", "das@teegra.net"],
   "ValidityDays": 30,
-  "KeySize1": 2048
+  "KeySize": 521,
+  "CertPath": "~/etc/certs/server_cert.pem",
+  "CertKeyPath": "~/etc/certs/server_key.pem",
+  "CAPath": "~/etc/cert-authority/ca_cert.pem",
+  "CAKeyPath": "~/etc/cert-authority/ca_key.pem",
+  "Overwrite": false,
+  "IsCA": false
 }
