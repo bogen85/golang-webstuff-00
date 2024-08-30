@@ -25,6 +25,29 @@ import (
 	"github.com/spf13/pflag"
 )
 
+// CertConfig holds the configuration for the certificate
+type CertConfig struct {
+	CommonName         string   `json:"CommonName"`
+	Country            string   `json:"Country"`
+	Organization       string   `json:"Organization"`
+	OrganizationalUnit string   `json:"OrganizationalUnit"`
+	Locality           string   `json:"Locality"`
+	Province           string   `json:"Province"`
+	StreetAddress      string   `json:"StreetAddress"`
+	PostalCode         string   `json:"PostalCode"`
+	DNSNames           []string `json:"DNSNames"`
+	IPAddresses        []string `json:"IPAddresses"`
+	EmailAddresses     []string `json:"EmailAddresses"`
+	ValidityDays       int      `json:"ValidityDays"`
+	KeySize            int      `json:"KeySize"`
+	IsCA               bool     `json:"IsCA"`
+	CAPath             string   `json:"CAPath"`
+	CAKeyPath          string   `json:"CAKeyPath"`
+	CertPath           string   `json:"CertPath"`
+	CertKeyPath        string   `json:"CertKeyPath"`
+	Overwrite          bool     `json:"Overwrite"`
+}
+
 func CheckOverwrite(path string, overwrite bool) {
 	if overwrite {
 		return
@@ -59,29 +82,6 @@ func ExpandPath(path string) string {
 		return filepath.Join(usr.HomeDir, path[1:])
 	}
 	return path
-}
-
-// CertConfig holds the configuration for the certificate
-type CertConfig struct {
-	CommonName         string   `json:"CommonName"`
-	Country            string   `json:"Country"`
-	Organization       string   `json:"Organization"`
-	OrganizationalUnit string   `json:"OrganizationalUnit"`
-	Locality           string   `json:"Locality"`
-	Province           string   `json:"Province"`
-	StreetAddress      string   `json:"StreetAddress"`
-	PostalCode         string   `json:"PostalCode"`
-	DNSNames           []string `json:"DNSNames"`
-	IPAddresses        []string `json:"IPAddresses"`
-	EmailAddresses     []string `json:"EmailAddresses"`
-	ValidityDays       int      `json:"ValidityDays"`
-	KeySize            int      `json:"KeySize"`
-	IsCA               bool     `json:"IsCA"`
-	CAPath             string   `json:"CAPath"`
-	CAKeyPath          string   `json:"CAKeyPath"`
-	CertPath           string   `json:"CertPath"`
-	CertKeyPath        string   `json:"CertKeyPath"`
-	Overwrite          bool     `json:"Overwrite"`
 }
 
 // randomSerialNumber generates a unique serial number by combining the current Unix timestamp and random bytes.
